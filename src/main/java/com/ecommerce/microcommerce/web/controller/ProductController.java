@@ -2,6 +2,7 @@ package com.ecommerce.microcommerce.web.controller;
 
 import com.ecommerce.microcommerce.dao.ProductDao;
 import com.ecommerce.microcommerce.model.Product;
+import com.ecommerce.microcommerce.web.exceptions.ProduitGratuitException;
 import com.ecommerce.microcommerce.web.exceptions.ProduitIntrouvableException;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.Valid;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -27,6 +30,21 @@ public class ProductController {
     @Autowired
     private ProductDao productDao;
 
+    @GetMapping(value="/AdminProduits")
+    public ResponseEntity calculerMargeProduit(){
+        List<Product> products = this.productDao.findAll();
+        HashMap<Product, Integer> returnedMap = new HashMap<>();
+        for(Product product : products) {
+            returnedMap.put(product, product.getPrix() - product.calculerMargeProduit());
+        }
+        return new ResponseEntity(returnedMap ,HttpStatus.OK);
+    }
+
+    @GetMapping(value="/ProduitsTries")
+    public ResponseEntity trierProduitsParOrdreAlphabetique() {
+        List<Product> products = this.productDao.findAllByOrderByNomAsc();
+        return new ResponseEntity(products ,HttpStatus.OK);
+    }
 
     //Récupérer la liste des produits
 
@@ -67,7 +85,11 @@ public class ProductController {
     //ajouter un produit
     @PostMapping(value = "/Produits")
 
-    public ResponseEntity<Void> ajouterProduit(@Valid @RequestBody Product product) {
+    public ResponseEntity<Void> ajouterProduit(@Valid @RequestBody Product product) throws ProduitGratuitException {
+
+        if(product.getPrix()<=0) {
+            throw new ProduitGratuitException("Le produit ne peut pas être gratuit");
+        }
 
         Product productAdded =  productDao.save(product);
 
